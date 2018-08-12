@@ -15,7 +15,7 @@ public @interface AutoColumn {
 
     String[] columns() default {};
 
-    JdbcType[] valueType() default {};
+    JdbcType[] jdbcType() default {};
 
     String[] values() default {};
 

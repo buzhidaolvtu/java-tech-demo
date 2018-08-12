@@ -9,6 +9,9 @@ import org.apache.ibatis.builder.StaticSqlSource;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.MappedStatement;
 import org.apache.ibatis.plugin.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.expression.Expression;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
@@ -27,21 +30,22 @@ import java.util.stream.Collectors;
 )
 public class AutoColumnInterceptor implements Interceptor {
 
+    private final static Logger logger = LoggerFactory.getLogger(AutoColumnInterceptor.class);
+
     private ExpressionParser parser = new SpelExpressionParser();
 
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
         Method method = invocation.getMethod();
-        AutoColumn autoColumn = method.getAnnotation(AutoColumn.class);
+        AutoColumn autoColumn = AnnotationUtils.findAnnotation(method, AutoColumn.class);
         if (Objects.isNull(autoColumn)) {
             return invocation.proceed();
         }
         String[] autoColumns = autoColumn.columns();
-        AutoColumn.JdbcType[] valueTypes = autoColumn.valueType();
+        AutoColumn.JdbcType[] valueTypes = autoColumn.jdbcType();
         List<String> values = Arrays.stream(autoColumn.values()).map(value -> {
             Expression exp = parser.parseExpression(value);
-            String message = String.valueOf(exp.getValue());
-            return message;
+            return String.valueOf(exp.getValue());
         }).collect(Collectors.toList());
 
 
@@ -71,7 +75,7 @@ public class AutoColumnInterceptor implements Interceptor {
             }
         }
         String newSql = update.toString();
-        System.out.println(newSql);
+        logger.info("new sql:{}", newSql);
 
         StaticSqlSource newSqlSource = new StaticSqlSource(ms.getConfiguration(), newSql);
         MappedStatement.Builder newBuilder = new MappedStatement.Builder(ms.getConfiguration(), ms.getId() + "$" + AutoColumn.class.getCanonicalName(), newSqlSource, ms.getSqlCommandType());
