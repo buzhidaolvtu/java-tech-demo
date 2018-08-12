@@ -37,15 +37,15 @@ public class AutoColumnInterceptor implements Interceptor {
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
         Method method = invocation.getMethod();
-        AutoColumn autoColumn = AnnotationUtils.findAnnotation(method, AutoColumn.class);
+        AutoColumns autoColumn = AnnotationUtils.findAnnotation(method, AutoColumns.class);
         if (Objects.isNull(autoColumn)) {
             return invocation.proceed();
         }
         String[] autoColumns = autoColumn.columns();
-        AutoColumn.JdbcType[] valueTypes = autoColumn.jdbcType();
-        List<String> values = Arrays.stream(autoColumn.values()).map(value -> {
+        AutoColumns.JdbcType[] valueTypes = autoColumn.jdbcType();
+        List<Object> values = Arrays.stream(autoColumn.values()).map(value -> {
             Expression exp = parser.parseExpression(value);
-            return String.valueOf(exp.getValue());
+            return exp.getValue();
         }).collect(Collectors.toList());
 
 
@@ -61,16 +61,16 @@ public class AutoColumnInterceptor implements Interceptor {
             columns.add(new Column(autoColumns[i]));
         }
         for (int i = 0; i < values.size(); i++) {
-            String value = values.get(i);
+            Object value = values.get(i);
             switch (valueTypes[i]) {
                 case NUMBER:
-                    update.getExpressions().add(new LongValue(Long.parseLong(value)));
+                    update.getExpressions().add(new LongValue(Long.parseLong(String.valueOf(value))));
                     break;
                 case STRING:
-                    update.getExpressions().add(new StringValue(value));
+                    update.getExpressions().add(new StringValue(String.valueOf(value)));
                     break;
-                case FUNCTION:
-                    update.getExpressions().add(new TemplateExpression(value));
+                case TEMPLATE:
+                    update.getExpressions().add(new TemplateExpression(String.valueOf(value)));
                     break;
             }
         }
@@ -78,7 +78,7 @@ public class AutoColumnInterceptor implements Interceptor {
         logger.info("new sql:{}", newSql);
 
         StaticSqlSource newSqlSource = new StaticSqlSource(ms.getConfiguration(), newSql);
-        MappedStatement.Builder newBuilder = new MappedStatement.Builder(ms.getConfiguration(), ms.getId() + "$" + AutoColumn.class.getCanonicalName(), newSqlSource, ms.getSqlCommandType());
+        MappedStatement.Builder newBuilder = new MappedStatement.Builder(ms.getConfiguration(), ms.getId() + "$" + AutoColumns.class.getCanonicalName(), newSqlSource, ms.getSqlCommandType());
         MappedStatement newMs = newBuilder.build();
         return executor.update(newMs, parameter);
     }

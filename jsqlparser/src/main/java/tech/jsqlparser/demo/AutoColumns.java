@@ -5,12 +5,12 @@ import java.lang.annotation.*;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD, ElementType.ANNOTATION_TYPE})
-public @interface AutoColumn {
+public @interface AutoColumns {
 
     enum JdbcType {
         STRING,
         NUMBER,
-        FUNCTION
+        TEMPLATE//把值原封不动的传递给SQL
     }
 
     String[] columns() default {};
@@ -18,5 +18,4 @@ public @interface AutoColumn {
     JdbcType[] jdbcType() default {};
 
     String[] values() default {};
-
 }
