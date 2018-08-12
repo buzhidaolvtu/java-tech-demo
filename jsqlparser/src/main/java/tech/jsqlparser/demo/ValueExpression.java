@@ -4,12 +4,12 @@ import net.sf.jsqlparser.expression.Expression;
 import net.sf.jsqlparser.expression.ExpressionVisitor;
 import net.sf.jsqlparser.parser.SimpleNode;
 
-public class TemplateExpression implements Expression {
+public class ValueExpression implements Expression {
 
-    private String template;
+    private String value;
 
-    public TemplateExpression(String template){
-        this.template = template;
+    public ValueExpression(String value){
+        this.value = value;
     }
 
 
@@ -29,6 +29,6 @@ public class TemplateExpression implements Expression {
 
     @Override
     public String toString() {
-        return template;
+        return value;
     }
 }

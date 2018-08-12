@@ -5,8 +5,11 @@ import java.lang.annotation.*;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-@AutoColumns(columns = {"update_time", "update_user_id", "update_user_name"},
-        values = {"'NOW()'", "T(tech.jsqlparser.demo.JSqlParserDemo).userId", "T(tech.jsqlparser.demo.JSqlParserDemo).userName()"},
-        jdbcType = {AutoColumns.JdbcType.TEMPLATE, AutoColumns.JdbcType.NUMBER, AutoColumns.JdbcType.STRING})
+@AutoColumns({
+        @AutoColumn(column = "update_time", expression = "'NOW()'", pass = true),
+        @AutoColumn(column = "update_time_test", expression = "1024", pass = true),
+        @AutoColumn(column = "update_user_id", expression = "T(tech.jsqlparser.demo.JSqlParserDemo).userId"),
+        @AutoColumn(column = "update_user_name", expression = "T(tech.jsqlparser.demo.JSqlParserDemo).userName()")
+})
 public @interface SimpleAutoColumns {
 }

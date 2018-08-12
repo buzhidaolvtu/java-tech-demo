@@ -18,10 +18,8 @@ import org.springframework.expression.spel.standard.SpelExpressionParser;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.stream.Collectors;
 
 @Intercepts(
         {
@@ -37,17 +35,10 @@ public class AutoColumnInterceptor implements Interceptor {
     @Override
     public Object intercept(Invocation invocation) throws Throwable {
         Method method = invocation.getMethod();
-        AutoColumns autoColumn = AnnotationUtils.findAnnotation(method, AutoColumns.class);
-        if (Objects.isNull(autoColumn)) {
+        AutoColumns autoColumnCfg = AnnotationUtils.findAnnotation(method, AutoColumns.class);
+        if (Objects.isNull(autoColumnCfg)) {
             return invocation.proceed();
         }
-        String[] autoColumns = autoColumn.columns();
-        AutoColumns.JdbcType[] valueTypes = autoColumn.jdbcType();
-        List<Object> values = Arrays.stream(autoColumn.values()).map(value -> {
-            Expression exp = parser.parseExpression(value);
-            return exp.getValue();
-        }).collect(Collectors.toList());
-
 
         Executor executor = (Executor) invocation.getTarget();
         Object[] args = invocation.getArgs();
@@ -56,24 +47,11 @@ public class AutoColumnInterceptor implements Interceptor {
         String boundSql = ms.getSqlSource().getBoundSql(parameter).getSql();
 
         Update update = (Update) CCJSqlParserUtil.parse(boundSql);
-        List<Column> columns = update.getColumns();
-        for (int i = 0; i < autoColumns.length; i++) {
-            columns.add(new Column(autoColumns[i]));
-        }
-        for (int i = 0; i < values.size(); i++) {
-            Object value = values.get(i);
-            switch (valueTypes[i]) {
-                case NUMBER:
-                    update.getExpressions().add(new LongValue(Long.parseLong(String.valueOf(value))));
-                    break;
-                case STRING:
-                    update.getExpressions().add(new StringValue(String.valueOf(value)));
-                    break;
-                case TEMPLATE:
-                    update.getExpressions().add(new TemplateExpression(String.valueOf(value)));
-                    break;
-            }
-        }
+
+        AutoColumn[] autoColumns = autoColumnCfg.value();
+        Arrays.stream(autoColumns).forEach(autoColumn -> {
+            resolveAutoColumn(autoColumn, update);
+        });
         String newSql = update.toString();
         logger.info("new sql:{}", newSql);
 
@@ -82,6 +60,32 @@ public class AutoColumnInterceptor implements Interceptor {
         MappedStatement newMs = newBuilder.build();
         return executor.update(newMs, parameter);
     }
+
+    private void resolveAutoColumn(AutoColumn autoColumn, Update update) {
+        String column = autoColumn.column();
+        boolean pass = autoColumn.pass();
+        String expression = autoColumn.expression();
+
+        update.getColumns().add(new Column(column));
+
+        Expression exp = parser.parseExpression(expression);
+        if (pass) {
+            update.getExpressions().add(new ValueExpression(String.valueOf(exp.getValue())));
+        } else if (isString(exp.getValueType())) {
+            update.getExpressions().add(new StringValue(String.valueOf(exp.getValue())));
+        } else if (isNumber(exp.getValueType())) {
+            update.getExpressions().add(new LongValue(String.valueOf(exp.getValue())));
+        }
+    }
+
+    private boolean isString(Class<?> valueType) {
+        return String.class.isAssignableFrom(valueType);
+    }
+
+    private boolean isNumber(Class<?> valueType) {
+        return Number.class.isAssignableFrom(valueType);
+    }
+
 
     @Override
     public Object plugin(Object target) {
